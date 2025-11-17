@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html lang="bn">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>লগইন / রেজিস্টার (Final Local)</title>
+    
+    <!-- Firebase SDK (শুধুমাত্র Database-এর জন্য) -->
+    <script src="https://www.gstatic.com/firebasejs/9.6.10/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.6.10/firebase-database.js"></script>
+    
+    <!-- CSS: Simple Auth Style -->
+    <style>
+        :root { --primary-color: #9060eb; --bg-light: #f0f0f5; }
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: var(--bg-light); display: flex; justify-content: center; align-items: center; min-height: 100vh; margin: 0; }
+        .auth-container { background: white; padding: 30px; border-radius: 15px; box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1); width: 300px; text-align: center; }
+        h2 { color: var(--primary-color); margin-bottom: 20px; }
+        input { width: 100%; padding: 10px; margin-bottom: 15px; border: 1px solid #ccc; border-radius: 8px; box-sizing: border-box; }
+        button { width: 100%; padding: 12px; background-color: var(--primary-color); color: white; border: none; border-radius: 8px; cursor: pointer; font-size: 16px; margin-top: 10px; transition: background-color 0.3s; }
+        button:hover { background-color: #7d49e7; }
+    </style>
+</head>
+<body>
+
+    <div class="auth-container">
+        <h2>লগইন / রেজিস্টার</h2>
+        <input type="email" id="email" placeholder="ইমেইল" required>
+        <input type="password" id="password" placeholder="পাসওয়ার্ড" required>
+        <button onclick="handleAuth(true)">লগইন</button>
+        <button onclick="handleAuth(false)">রেজিস্টার</button>
+    </div>
+
+    <script>
+        // ** Firebase Configuration (শুধুমাত্র DB এর জন্য) **
+        const firebaseConfig = {
+            apiKey: "AIzaSyAaVnqaTY2iD09hGJtDPkKBVwSxLCayho0", databaseURL: "https://trading-47a4c-default-rtdb.asia-southeast1.firebasedatabase.app", projectId: "trading-47a4c", storageBucket: "trading-47a4c.firebasestorage.app", messagingSenderId: "1043281941346", appId: "1:1043281941346:web:da231debf9836928a3523b"
+        };
+        
+        let db;
+        
+        // Firebase Initialization
+        if (typeof firebase !== 'undefined' && firebase.apps.length === 0) {
+            const app = firebase.initializeApp(firebaseConfig);
+            db = firebase.database();
+        }
+
+        // জিমেইলকে একটি ডামি ইউজার আইডি-তে পরিবর্তন করার ফাংশন (নিরাপত্তাহীন)
+        function emailPassToUid(email, password) {
+            return 'user_' + btoa(email.toLowerCase()).replace(/=/g, '').substring(0, 10);
+        }
+        
+        // ** লোকাল স্টোরেজ ভিত্তিক সিমুলেটেড অথেন্টিকেশন **
+        function handleAuth(isLogin) {
+            const email = document.getElementById('email').value.toLowerCase().trim();
+            const password = document.getElementById('password').value;
+            if (!email || !password) { alert("Email and Password required."); return; }
+
+            const dummyUserId = emailPassToUid(email, password);
+            const userRef = db.ref('users/' + dummyUserId);
+
+            userRef.once('value')
+                .then(snapshot => {
+                    const userData = snapshot.val();
+                    
+                    if (isLogin) {
+                        // লগইন লজিক
+                        if (userData && userData.password === password) { // পাসওয়ার্ড চেক
+                            localStorage.setItem('userToken', dummyUserId); 
+                            window.location.href = 'user_app.html';
+                        } else {
+                            alert("Login Failed: Incorrect Email or Password.");
+                        }
+                    } else {
+                        // রেজিস্ট্রেশন লজিক
+                        if (userData) {
+                            alert("Registration Failed: User already exists.");
+                        } else {
+                            // নতুন ইউজার তৈরি
+                            return userRef.set({
+                                email: email,
+                                password: password, // <-- পাসওয়ার্ড সেভ (নিরাপত্তাহীন, শুধুমাত্র ডেমোর জন্য)
+                                balance: 0.00,
+                                name: email.split('@')[0],
+                                profilePic: 'default',
+                                pendingReward: null,
+                                referralId: dummyUserId.substring(0, 8),
+                                referralCount: 0
+                            }).then(() => {
+                                localStorage.setItem('userToken', dummyUserId); 
+                                window.location.href = 'user_app.html';
+                            });
+                        }
+                    }
+                })
+                .catch(error => alert(`Access Failed: ${error.message}`));
+        }
+
+        // ইনিশিয়ালাইজেশন: যদি অলরেডি লগইন থাকে, তবে user_app এ পাঠান
+        document.addEventListener('DOMContentLoaded', () => {
+            if (localStorage.getItem('userToken')) {
+                window.location.href = 'user_app.html';
+            }
+        });
+    </script>
+</body>
+</html>
